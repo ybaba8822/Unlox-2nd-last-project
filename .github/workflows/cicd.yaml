@@ -1,0 +1,71 @@
+name: CI-CD Pipeline (Docker → ECR → Kubernetes)
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  AWS_REGION: us-east-1
+  AWS_ACCOUNT_ID: 239850283553
+  BACKEND_REPO: backend-service
+  FRONTEND_REPO: frontend-service
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Build & Push Backend Image
+        run: |
+          # Log in to ECR
+          aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+
+          IMAGE_URI=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$BACKEND_REPO:${GITHUB_SHA}
+          echo "Building $IMAGE_URI"
+          docker build -t $IMAGE_URI backend/
+          docker push $IMAGE_URI
+
+      - name: Build & Push Frontend Image
+        run: |
+          # Log in to ECR
+          aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+
+          IMAGE_URI=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$FRONTEND_REPO:${GITHUB_SHA}
+          echo "Building $IMAGE_URI"
+          docker build -t $IMAGE_URI frontend/
+          docker push $IMAGE_URI
+
+  deploy:
+    needs: build-and-push
+    runs-on: self-hosted   # Ensure kubectl & kubeconfig available
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Update Backend Deployment Image
+        run: |
+          IMAGE_URI=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$BACKEND_REPO:${GITHUB_SHA}
+          kubectl set image deployment/backend backend=$IMAGE_URI
+
+      - name: Update Frontend Deployment Image
+        run: |
+          IMAGE_URI=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$FRONTEND_REPO:${GITHUB_SHA}
+          kubectl set image deployment/frontend frontend=$IMAGE_URI
+
+      - name: Verify Rollout
+        run: |
+          kubectl rollout status deployment/backend
+          kubectl rollout status deployment/frontend
+

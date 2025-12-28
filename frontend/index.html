@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>DevOps App</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      height: 100vh;
+      margin: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: #fff;
+    }
+    .card {
+      background: #ffffff;
+      color: #333;
+      padding: 30px;
+      border-radius: 10px;
+      width: 350px;
+      text-align: center;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    }
+    h1 { margin-bottom: 10px; }
+    p { font-size: 14px; color: #666; }
+    input {
+      width: 100%;
+      padding: 8px;
+      margin-top: 10px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+    }
+    button {
+      background: #667eea;
+      border: none;
+      color: #fff;
+      padding: 12px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 14px;
+      margin-top: 15px;
+    }
+    button:hover { background: #5563d6; }
+    .result {
+      margin-top: 15px;
+      font-size: 13px;
+      background: #f4f4f4;
+      padding: 10px;
+      border-radius: 5px;
+      word-break: break-word;
+      color: #333;
+      text-align: left;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>DevOps Build & Deploy a Full Pipeline Project  </h1>
+    <p>Frontend → Backend → MongoDB</p>
+
+    <input type="text" id="messageInput" placeholder="Type your message here" />
+
+    <button onclick="sendData()">Send Message</button>
+
+    <div id="result" class="result"></div>
+  </div>
+
+  <script>
+    async function sendData() {
+      const msg = document.getElementById("messageInput").value;
+      if (!msg) {
+        alert("Please enter a message!");
+        return;
+      }
+
+      document.getElementById("result").innerText = "Sending data...";
+      try {
+        const res = await fetch('/data', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: msg })
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+          document.getElementById("result").innerHTML = `
+            <p><strong>Status:</strong> ${data.status}</p>
+            <p><strong>Inserted ID:</strong> ${data.inserted_id}</p>
+            <p><strong>Message:</strong> ${data.message}</p>
+            <p><strong>Created At:</strong> ${data.created_at}</p>
+          `;
+          document.getElementById("messageInput").value = "";
+        } else {
+          document.getElementById("result").innerText = "Error: " + (data.error || "Unknown error");
+        }
+      } catch (err) {
+        document.getElementById("result").innerText = "Fetch error: " + err;
+      }
+    }
+  </script>
+</body>
+</html>
+
